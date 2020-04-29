@@ -16,14 +16,10 @@
 ## Usage:
 ### Two scenarios: 
 1. You want to use graphical output a display attached to a device (e.g. Jetson Nano/TX2 etc.) or running X11 forwarding:
- - Use `python3 detector_deploy.py --help` to see all possible arguments
+ - Use `python3 detector_deploy.py --help` to see all possible (and required) arguments + optional ones.
 2. You just want to check the logic in terminal without graphical output:
- - Comment out / change these lines:<br>
-  `open_window(1280, 720)` (https://github.com/mgiessing/sampleTinyYoloV2/blob/85c03fefba9ae4d512a7d1e439595f9616a0f92e/detector_deploy.py#L221) and <br>
-  `cv2.destroyAllWindows()` (https://github.com/mgiessing/sampleTinyYoloV2/blob/85c03fefba9ae4d512a7d1e439595f9616a0f92e/detector_deploy.py#L243).<br> 
-  Set the line `imshow = True`  to `imshow = False` (https://github.com/mgiessing/sampleTinyYoloV2/blob/030fc7b11a0a95423a15ab71735565825db39a10/detector_deploy.py#L75) and follow the procedure in scenario 1.<br>
+ - Just run the script with the required arguments as seen under the 'Execution' heading below.<br>
 
- This might be configured through an argument for comfortability in a future release.
 ### Execution:
  For my scenario I have trained a model which detects 5 different types/colours of light-emitting diodes (LEDs) and created another folder `testdata` with all the required files inside this repository. I used the second scenario and commented the mentioned lines which would create/destroy the window out.
  
@@ -48,7 +44,7 @@ Output of frame #1:
     class : green_led, [x,y,w,h]=[197,243,29,28], Confidence = 0.9999808
     class : white_led, [x,y,w,h]=[80,155,35,31], Confidence = 0.9998838
  ```
-Multiple images can be passed comma seperated, for a continous camerastream pass the `--image='Camera'` instead of a filepath and make sure all no lines are commented out and imshow is set to True.
+Multiple images can be passed comma seperated, for a continous camerastream pass the `--image='Camera'` instead of a filepath. Currently the camerastream will force `--showgui = True`, but in a later release this might be optional.
 
 ## Notes:
  - INT8 quantization doesn't work yet (the engine building fails), this might get fixed in a new release, therefore choose FP16 or FP32 precision at the moment

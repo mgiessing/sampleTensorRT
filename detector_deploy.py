@@ -68,11 +68,11 @@ def draw_box(img, name, box, score):
     cv2.putText(img, box_tag, (xmin+text_x, ymin-text_y),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
-def show_results(img, results, i):
+def show_results(img, results, i, showgui):
     """ draw bounding boxes on the image """
     img_width, img_height = img.shape[1], img.shape[0]
     disp_console = True
-    imshow = True
+    imshow = showgui
     for result in results:
         box_x, box_y, box_w, box_h = [int(v) for v in result[1:5]]
         if disp_console:
@@ -145,11 +145,12 @@ class Detector():
             trt_engine_datatype=trt_engine_datatype,
             batch_size=batch_size)
 
-    def detect(self, image, conf_thresh=0.5, classes=None, anchors=None):
+    def detect(self, image, conf_thresh=0.5, classes=None, anchors=None, showgui=False):
         '''
         Tiny YoloV2 detection
         '''
         # Start measuring time
+        imagePath = image
         loadimage_start_time = time.time()
 
         # handle post files, get folders and comma separated file paths/names
@@ -178,6 +179,9 @@ class Detector():
         for i, image in enumerate(images):
             if isinstance(image, str):
                 image = cv2.imread(image)
+                if image is None:
+                    print("\nCouldn't read image at {}, make sure image exists and path is correct\n".format(imagePath))
+                    exit()
             images[i] = image
             image_w[i], image_h[i] = image.shape[1], image.shape[0]
             image = cv2.resize(image, (model_utils.ModelData.INPUT_SHAPE[2], model_utils.ModelData.INPUT_SHAPE[1]), interpolation=cv2.INTER_AREA)
@@ -196,7 +200,7 @@ class Detector():
         for i in range(len(h_output)):
             print("Output of frame #{}:".format(i+1))
             results = post_utils.get_candidate_objects(h_output[i], images[i].shape, classes, anchors, conf_thresh)
-            show_results(images[i], results, i)
+            show_results(images[i], results, i, showgui)
         #print("Average inference time was:", (total.total_seconds()*1e3)/(i+1), "milliseconds, or:", 1/((total.total_seconds())/(i+1)), "FPS")
 
 def main(argv):
@@ -207,10 +211,11 @@ def main(argv):
     parser.add_argument('--anchors', required = True, type=str, help='anchors.txt file')
     parser.add_argument('--labels', required = True, type=str, help='label.txt file')
     parser.add_argument('--image', required = True, type=str, help='input image')
-    parser.add_argument('--bs', default=1, type=int, help='batch size')
-    parser.add_argument('--resolution', default="416x416", type=str, help='image resolution')
-    parser.add_argument('--precision', default=16, type=int, choices=[8, 16, 32], help='precision mode (8: INT8, 16: HALF or 32: FLOAT)')
-    parser.add_argument('--confthre', default = 0.5, type=float, help = "Override confidence threshold")
+    parser.add_argument('--bs', default=1, type=int, help='batch size (default: 1)')
+    parser.add_argument('--resolution', default="416x416", type=str, help='image resolution (default: 416x416)')
+    parser.add_argument('--precision', default=16, type=int, choices=[8, 16, 32], help='precision mode (default: 16)')
+    parser.add_argument('--confthre', default = 0.5, type=float, help = 'Override confidence threshold (default: 0.5)')
+    parser.add_argument('--showgui', default = False, type=bool, help = 'Show graphical output (default: False)')
 
     def open_window(width, height):
         cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
@@ -218,13 +223,17 @@ def main(argv):
         cv2.moveWindow(WINDOW_NAME, 0, 0)
         cv2.setWindowTitle(WINDOW_NAME, 'Camera Demo for Jetson TX2/TX1')
 
-    open_window(1280, 720)
-
     args, _ = parser.parse_known_args()
+
+    if args.image == 'Camera':
+        args.showgui = True
+
+    if args.showgui is True:
+        open_window(1280, 720)
 
     detector = Detector(args.proto, args.model, args.labels, True, True, args.bs, args.resolution, args.precision)
     if args.image != 'Camera':
-        detector.detect(args.image, args.confthre, load_classes(args.labels), load_anchors(args.anchors))
+        detector.detect(args.image, args.confthre, load_classes(args.labels), load_anchors(args.anchors), args.showgui)
     else:
         gst_str = ('nvarguscamerasrc ! nvvidconv ! video/x-raw, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink')
         #cap = cv2.VideoCapture(gst_str, cv2.CAP_GSTREAMER)
@@ -232,15 +241,16 @@ def main(argv):
         if cap.isOpened():
             while True:
                 _, img = cap.read()
-                detector.detect(img, args.confthre, load_classes(args.labels), load_anchors(args.anchors))
+                detector.detect(img, args.confthre, load_classes(args.labels), load_anchors(args.anchors), args.showgui)
                 key = cv2.waitKey(1)
                 if key == 27:  # ESC key: quit program
                     break
                 if cv2.getWindowProperty(WINDOW_NAME, 0) < 0:
                     break
             cap.release()
-
-    cv2.destroyAllWindows()
+    
+    if args.showgui is True:
+        cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     main(sys.argv)
