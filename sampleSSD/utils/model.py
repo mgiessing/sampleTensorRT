@@ -11,11 +11,11 @@ class ModelData(object):
     # Name of input node
     INPUT_NAME = "Input"
     # CHW format of model input
-    INPUT_SHAPE = (3, 416, 416)
+    INPUT_SHAPE = (3, 512, 512)
     # Name of output node
     OUTPUT_NAME = "NMS"
 
-    OUTPUT_NAME = "conv_reg"
+    OUTPUT_NAME = "detection_out"
 
     @staticmethod
     def get_input_channels():

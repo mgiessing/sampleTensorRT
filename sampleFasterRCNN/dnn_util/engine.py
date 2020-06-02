@@ -55,8 +55,6 @@ import tensorrt as trt
 import pycuda.driver as cuda
 import numpy as np
 
-from utils.model import ModelData
-
 # ../../common.py
 sys.path.insert(1,
     os.path.join(
@@ -65,7 +63,7 @@ sys.path.insert(1,
         os.pardir
     )
 )
-from utils.common import HostDeviceMem
+from dnn_util.common import HostDeviceMem
 
 def allocate_buffers(engine):
     """Allocates host and device buffer for TRT engine inference.
@@ -94,7 +92,7 @@ def allocate_buffers(engine):
     # it may change in the future, which could brake this sample here
     # when using lower precision [e.g. NMS output would not be np.float32
     # anymore, even though this is assumed in binding_to_type]
-    binding_to_type = {"data": np.float32, "conv_reg": np.float32}
+    binding_to_type = {"data": np.float32, "detection_out": np.float32, "keep_count": np.int32}
     
 
     for binding in engine:
@@ -119,8 +117,10 @@ def build_engine(trt_deploy_path, trt_model_path, trt_logger, trt_engine_datatyp
         if trt_engine_datatype == trt.DataType.HALF:
             builder.fp16_mode = True
         builder.max_batch_size = batch_size
-        model_tensors = parser.parse(trt_deploy_path, trt_model_path, network,trt_engine_datatype)
-        network.mark_output(model_tensors.find(ModelData.OUTPUT_NAME))
+        model_tensors = parser.parse(trt_deploy_path, trt_model_path, network, trt_engine_datatype)
+        network.mark_output(model_tensors.find('bbox_pred'))
+        network.mark_output(model_tensors.find('cls_prob'))
+        network.mark_output(model_tensors.find('rois'))
         if not silent:
             print("Building TensorRT engine. This may take few minutes.")
        

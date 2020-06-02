@@ -121,7 +121,7 @@ def allocate_buffers(engine):
     outputs = []
     bindings = []
     stream = cuda.Stream()
-    binding_to_type = {"data": np.float32, "conv_reg": np.float32}
+    binding_to_type = {"data": np.float32, "detection_out": np.float32, "keep_count": np.int32}
     for binding in engine:
         print("binding:",binding)
         size = trt.volume(engine.get_binding_shape(binding)) * engine.max_batch_size

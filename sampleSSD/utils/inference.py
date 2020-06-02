@@ -110,6 +110,7 @@ class TRTInference(object):
 
         # If engine is not cached, we need to build it
         if not os.path.exists(trt_engine_path):
+            build_start_time = time.time()
            # For more details, check implmentation
             self.trt_engine = engine_utils.build_engine(
                 trt_deploy_path, trt_model_path, TRT_LOGGER,
@@ -118,6 +119,8 @@ class TRTInference(object):
             print("self.trt_engine:",self.trt_engine)
             # Save the engine to file
             engine_utils.save_engine(self.trt_engine, trt_engine_path)
+            ftime = divmod(round(time.time() - build_start_time), 60)
+            print("Engine build time: {} minute/s and {} seconds".format(int(ftime[0]), int(ftime[1])))
 
         # If we get here, the file with engine exists, so we can load it
         if not self.trt_engine:
@@ -145,51 +148,37 @@ class TRTInference(object):
             image_np (numpy): image, that will be packed into batch and fed into model
         """
         max_batch_size = self.trt_engine.max_batch_size
-        numpy_array = img_np
         actual_batch_size = len(img_np)
+        # Load all images to CPU...
+        # for i in range(actual_batch_size):
+        #     self.numpy_array[i] = np.array(img_np[i]).ravel()
+        self.numpy_array = img_np
 
-        results = np.zeros(0, dtype=np.float32)
-        batch_num = 0
-
-        for start_idx in range(0, actual_batch_size, max_batch_size):
-            print("Loop #{}".format(start_idx+1))
-            batch_num+=1
-            end_idx = min(start_idx + max_batch_size, actual_batch_size)
-            effective_batch_size = end_idx - start_idx
-            self.inputs[0].host = numpy_array[start_idx:start_idx + effective_batch_size]
-            [result] = common.do_inference(
-                self.context, self.bindings, self.inputs, 
-                self.outputs, self.stream, effective_batch_size)
-            
-            results = np.append(results, result)
-
-        if actual_batch_size < max_batch_size:
-            results = results[:int(len(results)*(actual_batch_size/max_batch_size))]
-        
-        return results
-
-    def rest(self):
+        # ...copy them into appropriate place into memory...
         np.copyto(self.inputs[0].host, self.numpy_array.ravel())
+
+        # ...fetch model outputs...
+        # all detections
         detections_out = np.zeros((0), dtype=np.float32)
-        #keep_counts_out = np.zeros((0), dtype=np.int32)
+        keep_counts_out = np.zeros((0), dtype=np.int32)
 
         # go through file batch by batch
         for i in range(0, max_batch_size, max_batch_size):
 
             # batch detections
-            [detection_out] = common.do_inference(
+            [detection_out, keep_count_out] = common.do_inference(
                 self.context, bindings=self.bindings, inputs=self.inputs,
                 outputs=self.outputs, stream=self.stream,
                 batch_size=self.trt_engine.max_batch_size)
 
             # because image index in the batch are 0 (to BATCH_SIZE-1) based need to add absolute index of batch to get absolute image index
             # each image gets max 200 object detections each gets 7 floats and image_id float index is at position 0, see TRT_PREDICTION_LAYOUT
-            #for f in range(self.trt_engine.max_batch_size):
-                #for c in range(keep_count_out[f]):
-                    #detection_out[(f * 200 + c) * 7 + 0] += i
+            for f in range(self.trt_engine.max_batch_size):
+                for c in range(keep_count_out[f]):
+                    detection_out[(f * 200 + c) * 7 + 0] += i
 
             detections_out = np.append(detections_out, detection_out, axis=0)
-            #keep_counts_out = np.append(keep_counts_out, keep_count_out, axis=0)
+            keep_counts_out = np.append(keep_counts_out, keep_count_out, axis=0)
 
-        return detections_out#, keep_counts_out
+        return detections_out, keep_counts_out
 
