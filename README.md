@@ -19,7 +19,7 @@
 1. You want to use graphical output a display attached to a device (e.g. Jetson Nano/TX2 etc.) or running X11 forwarding:
  - Use `python3 detector_deploy.py --help` to see all possible (and required) arguments + optional ones.
 2. You just want to check the logic in terminal without graphical output:
- - Just run the script with the required arguments as seen under the 'Execution' heading below and set `showgui=False`.<br>
+ - Just run the script with the required arguments as seen under the 'Execution' heading below and set `--showgui=False`.<br>
 
 See YoloV2 for concrete instructions
 
